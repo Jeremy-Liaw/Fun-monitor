@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>噬菌體感染細菌模擬器</title>
+<style>
+:root{--bg:#f4f7fa;--fg:#14202e;--card:#fff;--mut:#5b6b7c;--ac:#0e8a6a;--bd:#d5dde6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e141b;--fg:#e6edf4;--card:#17202a;--mut:#93a4b5;--ac:#3ddbb0;--bd:#2a3744}}
+:root[data-theme="dark"]{--bg:#0e141b;--fg:#e6edf4;--card:#17202a;--mut:#93a4b5;--ac:#3ddbb0;--bd:#2a3744}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.6}
+main{max-width:900px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;margin:.2em 0}
+.sub{color:var(--mut);margin:0 0 12px;font-size:.92rem}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+button{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--fg);padding:7px 13px;border-radius:999px;cursor:pointer}
+button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+button.done{border-color:var(--ac)}
+.stage{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:radial-gradient(ellipse at 50% 40%,#1d3b57,#0a1624)}
+.stage>*{position:absolute;inset:0;width:100%;height:100%}
+#c3{touch-action:none;cursor:grab}
+.hint{position:absolute;right:10px;bottom:6px;font-size:.72rem;color:#9fb6cc;pointer-events:none}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px 16px;margin-top:10px}
+.card h2{margin:0 0 4px;font-size:1.1rem;color:var(--ac)}
+.card p{margin:0}
+.bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin-top:10px}
+#bar{height:100%;width:0;background:var(--ac)}
+.leg{font-size:.85rem;color:var(--mut)}
+label{display:flex;align-items:center;gap:8px;font-size:.9rem}
+.foot{font-size:.78rem;color:var(--mut);margin-top:16px}
+h1{font-size:1.8rem;background:linear-gradient(90deg,#0e8a6a,#2b7be4);-webkit-background-clip:text;background-clip:text;color:transparent}
+.stage{box-shadow:0 8px 28px rgba(10,22,36,.3)}
+.stage>.hint{inset:auto 10px 6px auto;width:auto;height:auto}
+.stage>.badge{inset:10px auto auto 10px;width:auto;height:auto;background:rgba(0,0,0,.5);color:#fff;padding:3px 14px;border-radius:999px;font-size:.85rem;backdrop-filter:blur(4px);pointer-events:none}
+.card{border-left:5px solid var(--ac)}
+.why{color:var(--mut);margin-top:4px!important}
+.info h3{margin:26px 0 6px;font-size:1.15rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.c,details,.steps li{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 14px}
+.c{display:flex;flex-direction:column;gap:2px;font-size:.92rem}
+.steps{padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;position:relative;padding-left:56px;margin:8px 0;cursor:pointer}
+.steps li::before{content:counter(s);position:absolute;left:14px;top:10px;width:30px;height:30px;border-radius:50%;background:var(--ac);color:#fff;display:grid;place-items:center;font-weight:700}
+details{margin:8px 0}summary{cursor:pointer;font-weight:600}
+details p{margin:6px 0 2px;color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+<h1>🦠 噬菌體感染細菌模擬器</h1>
+<p class="sub">噬菌體是專門吃細菌的病毒。按下播放，看它如何闖進細菌、複製自己，最後把細菌撐破。</p>
+<div class="row"><button id="t2" class="on">2D 模擬</button><button id="t3">3D 模擬</button></div>
+<div class="stage">
+<canvas id="c2" width="1600" height="900"></canvas>
+<div id="c3" style="display:none"></div>
+<span class="hint" id="hint"></span><span class="badge" id="bdg"></span>
+</div>
+<div class="bar"><div id="bar"></div></div>
+<div class="row" id="chips"></div>
+<div class="row">
+<button id="pp">⏸ 暫停</button>
+<label>速度 <input id="sp" type="range" min="0.3" max="3" step="0.1" value="1"> <span id="spv">1×</span></label>
+</div>
+<div class="card"><h2 id="ttl"></h2><p id="dsc"></p><p class="why" id="why"></p></div>
+<p class="leg">🟠 噬菌體　🩷 噬菌體 DNA　🟣 細菌 DNA　🔵 病毒蛋白質　🟢 細菌</p>
+<section class="info">
+<h3>🔬 什麼是噬菌體？</h3>
+<p>噬菌體（Bacteriophage）是專門感染細菌的病毒，名字的意思就是「吃細菌的東西」。它自己不能生長，必須借用細菌體內的零件才能繁殖，所以說它「寄生」在細菌上。</p>
+<div class="grid">
+<div class="c"><b>🟠 頭部</b><span>蛋白質外殼，裡面裝著 DNA（遺傳指令書）。</span></div>
+<div class="c"><b>💉 尾部</b><span>像針筒，負責把 DNA 打進細菌。</span></div>
+<div class="c"><b>🦵 尾絲</b><span>像鑰匙，辨認並抓住細菌表面。</span></div>
+</div>
+<h3>🔁 五個步驟，一次看懂</h3>
+<p class="foot" style="margin:0">點一下步驟，會回到上方模擬器播放那一步。</p>
+<ol class="steps">
+<li><b>吸附</b>：尾絲認出細菌表面的受體並抓牢，像鑰匙對鎖。</li>
+<li><b>注入</b>：尾部把 DNA 打進細菌，空殼留在外面。</li>
+<li><b>合成</b>：病毒 DNA 搶走細菌的控制權，細菌自己的 DNA 被分解，開始大量製造病毒 DNA 與蛋白質。</li>
+<li><b>組裝</b>：零件拼成一隻隻新的噬菌體。</li>
+<li><b>裂解</b>：細胞壁被溶菌酶破壞，細菌脹破死亡，新噬菌體衝出去找下一個目標。</li>
+</ol>
+<h3>💡 常見問題</h3>
+<details><summary>為什麼噬菌體不會感染人？</summary><p>噬菌體要靠尾絲抓住特定的受體，而這些受體只存在於細菌表面。人類細胞沒有對應的結構，所以它無法附著、也無法注入 DNA。</p></details>
+<details><summary>一次會產生多少新噬菌體？要花多久？</summary><p>依種類而異，一個細菌通常會釋放數十到數百個子代，整個循環約半小時左右。本模擬為了方便觀看，畫面中只畫出 12 個。</p></details>
+<details><summary>裂解循環和溶原循環有什麼不同？</summary><p>裂解循環就是本模擬的過程，細菌很快被殺死。溶原循環則是噬菌體 DNA 先潛伏在細菌的染色體裡，跟著細菌一起分裂，等環境變差時才轉為裂解循環。</p></details>
+<details><summary>噬菌體有什麼用處？</summary><p>它是研究基因的重要工具，也被研究用來對付抗藥性細菌，稱為「噬菌體療法」。它對特定細菌很專一，比較不會傷到有益菌。</p></details>
+</section>
+<p class="foot">教學用簡化示意，尺寸與比例並非真實（噬菌體約 200 奈米，細菌約 2 微米）。</p>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const cl=(v,a=0,b=1)=>Math.min(b,Math.max(a,v)),lp=(a,b,t)=>a+(b-a)*t,ez=t=>t*t*(3-2*t);
+const S=[
+['吸附','噬菌體用尾絲辨識細菌表面的特定受體，並牢牢附著上去。每種噬菌體只能感染特定的宿主，專一性很高。'],
+['注入','尾鞘收縮，像針筒一樣把遺傳物質（DNA）穿過細胞壁注入細菌內，空的蛋白質外殼留在外面。'],
+['合成','噬菌體 DNA 接管細菌的代謝機制：先分解細菌自己的 DNA，再大量複製病毒 DNA 並合成病毒蛋白質。'],
+['組裝','頭部蛋白質包住 DNA，再接上尾部與尾絲，細菌體內組裝出一個個新的噬菌體。'],
+['裂解','病毒基因產生溶菌酶，分解細胞壁，細菌因內部壓力過大而脹破死亡，釋放出子代噬菌體去感染下一個細菌。']];
+const A=['白話：像鑰匙插進鎖孔，只有對的鑰匙才打得開。','白話：像用針筒打針，把「指令書」送進細菌裡。','白話：像駭客劫持工廠，細菌被迫改做病毒的零件。','白話：像工廠量產，零件被拼成一隻隻新的噬菌體。','白話：像氣球被吹爆，細菌破掉，新噬菌體衝出去找下一個目標。'];
+let st=0,p=0,play=true,spd=1,T=0,mode='2d';
+let s0=7;const rn=()=>(s0=s0*16807%2147483647)/2147483647;
+const P=[...Array(30)].map(()=>({a:rn(),b:rn(),c:rn(),d:rn(),e:rn()}));
+const chips=S.map((s,i)=>{const b=document.createElement('button');b.textContent=(i+1)+' '+s[0];b.onclick=()=>{st=i;p=0;play=true};$('#chips').appendChild(b);return b});
+function ui(){
+chips.forEach((c,i)=>c.className=i==st?'on':i<st?'done':'');
+$('#ttl').textContent=(st+1)+'. '+S[st][0];$('#dsc').textContent=S[st][1];$('#why').textContent='💡 '+A[st];$('#bdg').textContent='步驟 '+(st+1)+'／5・'+S[st][0];
+$('#bar').style.width=((st+p)/5*100)+'%';
+$('#pp').textContent=play?'⏸ 暫停':(st==4&&p>=1?'↻ 重播':'▶ 播放')}
+$('#pp').onclick=()=>{if(st==4&&p>=1){st=0;p=0;play=true}else play=!play};
+$('#sp').oninput=e=>{spd=+e.target.value;$('#spv').textContent=spd.toFixed(1)+'×'};
+function setMode(m){mode=m;$('#c2').style.display=m=='2d'?'':'none';$('#c3').style.display=m=='3d'?'':'none';
+$('#t2').className=m=='2d'?'on':'';$('#t3').className=m=='3d'?'on':'';
+$('#hint').textContent=m=='3d'?'拖曳旋轉・滾輪縮放':'';if(m=='3d')rs()}
+$('#t2').onclick=()=>setMode('2d');$('#t3').onclick=()=>setMode('3d');
+document.querySelectorAll('.steps li').forEach((l,i)=>l.onclick=()=>{st=i;p=0;play=true;scrollTo({top:0,behavior:'smooth'})});
+
+/* ---------- 2D ---------- */
+const x=$('#c2').getContext('2d');x.scale(2,2);
+function cap(cx,cy,L,R){x.beginPath();x.arc(cx-L+R,cy,R,Math.PI/2,Math.PI*1.5);x.arc(cx+L-R,cy,R,-Math.PI/2,Math.PI/2);x.closePath()}
+function ph2(X,Y,s,rot,full){
+x.save();x.translate(X,Y);x.rotate(rot);x.scale(s,s);
+x.strokeStyle='#e8b04a';x.lineWidth=3;x.lineJoin='round';
+x.beginPath();x.moveTo(0,0);x.lineTo(0,-40);x.stroke();
+for(const k of[-1,1]){x.beginPath();x.moveTo(0,-4);x.lineTo(k*16,8);x.moveTo(0,-4);x.lineTo(k*8,10);x.stroke()}
+x.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3+Math.PI/6;x.lineTo(Math.cos(a)*20,-60+Math.sin(a)*20)}x.closePath();
+x.fillStyle=full?'#f5a623':'rgba(245,166,35,.25)';x.fill();x.stroke();
+if(full){x.strokeStyle='#e0457b';x.lineWidth=2;x.beginPath();for(let j=0;j<5;j++)x.lineTo(-8+j*4,-60+(j%2?6:-6));x.stroke()}
+x.restore()}
+function d2(){
+const W=800,H=450,cx=400,cy=270;
+const sw=st==4?cl(p/.65):0,b=st==4?cl((p-.65)/.35):0;
+const sc=1+.12*sw+(st==4&&b==0?Math.sin(T*30)*.004*sw:0),L=215*sc,R=95*sc;
+x.clearRect(0,0,W,H);
+x.fillStyle='rgba(255,255,255,.07)';for(let i=0;i<16;i++){x.beginPath();x.arc((P[i].a*W+T*8*(P[i].d+.3))%W,P[i].b*H+Math.sin(T*.5+i)*12,3+P[i].c*8,0,7);x.fill()}
+x.save();x.globalAlpha=1-b*.7;x.shadowColor='#5fd08a';x.shadowBlur=24;cap(cx,cy,L,R);x.fillStyle='rgba(76,175,112,.3)';x.fill();
+x.strokeStyle='#5fd08a';x.lineWidth=4;if(b>0)x.setLineDash([14,18]);x.stroke();x.restore();
+if(st<3){x.save();x.globalAlpha=st==2?1-p:1;x.strokeStyle='#b58cff';x.lineWidth=4;if(st==2)x.setLineDash([6,8]);
+x.beginPath();x.ellipse(cx-60,cy,40,28,.3,0,7);x.stroke();x.restore()}
+if(st==2){
+const n=Math.floor(p*24),m=Math.floor(p*30);
+x.strokeStyle='#e0457b';x.lineWidth=3;
+for(let i=0;i<n;i++){const q=P[i],X=cx+(q.a-.5)*340,Y=cy+(q.b-.5)*120,a=q.c*3.14;
+x.beginPath();x.moveTo(X-Math.cos(a)*8,Y-Math.sin(a)*8);x.lineTo(X+Math.cos(a)*8,Y+Math.sin(a)*8);x.stroke()}
+x.fillStyle='#4aa3ff';
+for(let i=0;i<m;i++){const q=P[i];x.beginPath();x.arc(cx+(q.d-.5)*360,cy+(q.e-.5)*130,4,0,7);x.fill()}}
+if(st>=3){
+const k=st==3?p*12:12;
+for(let i=0;i<Math.ceil(k);i++){const q=P[i],s=.4*Math.min(1,k-i);
+let X=cx+(q.a-.5)*340,Y=cy+(q.b-.5)*100+25;
+if(b>0){const ang=Math.atan2(Y-cy,X-cx),d=(.6+q.e)*b;X+=Math.cos(ang)*d*260;Y+=Math.sin(ang)*d*170}
+else if(st==4){X+=Math.sin(T*25+i)*sw*2;Y+=Math.cos(T*23+i)*sw*2}
+ph2(X,Y,s,q.c*2-1+b*q.d*6,true)}}
+const ax=[290,400,510],sx=[60,330,740],sy=[110,90,130];
+for(let i=0;i<3;i++){
+const e=st==0?ez(p):1,X=lp(sx[i],ax[i],e),Y=lp(sy[i],cy-R-2,e)+(st==0?Math.sin(T*3+i)*(1-e)*10:0);
+if(st==1){x.strokeStyle='#e0457b';x.lineWidth=3;x.beginPath();x.moveTo(X,Y-50+60*p);x.lineTo(X,Y+90*p);x.stroke()}
+ph2(X,Y,1,lp(.8-i*.6,0,e),st==0||(st==1&&p<.6))}
+x.save();x.font='600 15px system-ui,sans-serif';x.textAlign='center';
+const lb=(t,X,Y,c)=>{x.fillStyle=c;x.fillText(t,X,Y)};
+lb('細菌',cx,cy+R+28,'#9ff0bd');
+if(st<3)lb('細菌 DNA',cx-60,cy+52,'#cdb2ff');
+x.textAlign='left';
+if(st<2)lb('噬菌體',ax[1]+34,cy-R-62,'#ffd27a');
+if(st==1)lb('病毒 DNA 被注入',ax[1]+16,cy-R+40,'#ff8fb5');
+x.textAlign='center';
+if(st==2){lb('病毒 DNA 大量複製',cx-80,cy-R+30,'#ff8fb5');lb('病毒蛋白質',cx+90,cy+R-14,'#8cc4ff')}
+if(st==3)lb('組裝出新的噬菌體',cx,cy-R+30,'#ffd27a');
+if(st==4&&b>.2)lb('子代噬菌體釋放，細菌死亡',cx,60,'#ffd27a');
+x.restore()}
+
+/* ---------- 3D ---------- */
+let rd,sc,cam,root,cell,host,ph3=[],inj=[],cop=[],prt=[],mini=[],yaw=.4,pit=.25,zoom=8;
+const tm=typeof THREE!='undefined'?new THREE.MeshPhongMaterial({color:0xe8b04a}):0;
+function mkPh(){
+const g=new THREE.Group(),m=new THREE.MeshPhongMaterial({color:0xf5a623}),w=new THREE.Group();
+const add=(geo,y,mt)=>{const o=new THREE.Mesh(geo,mt||m);o.position.y=y;g.add(o);return o};
+add(new THREE.CylinderGeometry(.2,.2,.3,6),.3);add(new THREE.ConeGeometry(.2,.12,6),.51);
+add(new THREE.ConeGeometry(.2,.12,6),.09).rotation.x=Math.PI;
+add(new THREE.CylinderGeometry(.04,.04,.55,8),-.3,tm);
+for(let i=0;i<6;i++){const l=new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,.3,4),tm),a=i*Math.PI/3;
+l.position.set(Math.cos(a)*.13,-.62,Math.sin(a)*.13);l.rotation.set(-Math.sin(a)*.7,0,Math.cos(a)*.7);g.add(l)}
+g.position.y=.75;w.add(g);w.userData.m=m;return w}
+function init3(){
+const el=$('#c3');rd=new THREE.WebGLRenderer({antialias:true,alpha:true});rd.setPixelRatio(Math.min(2,devicePixelRatio));el.appendChild(rd.domElement);
+sc=new THREE.Scene();cam=new THREE.PerspectiveCamera(45,1.78,.1,100);
+sc.add(new THREE.AmbientLight(0xffffff,.75));const dl=new THREE.DirectionalLight(0xffffff,.8);dl.position.set(3,5,4);sc.add(dl);
+root=new THREE.Group();sc.add(root);
+cell=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),new THREE.MeshPhongMaterial({color:0x4caf70,transparent:true,opacity:.3,depthWrite:false}));root.add(cell);
+host=new THREE.Mesh(new THREE.TorusGeometry(.3,.04,8,32),new THREE.MeshPhongMaterial({color:0xb58cff,transparent:true}));host.position.set(-.7,0,0);root.add(host);
+const pk=new THREE.MeshPhongMaterial({color:0xe0457b}),bl=new THREE.MeshPhongMaterial({color:0x4aa3ff});
+for(let i=0;i<3;i++){const a=mkPh();a.scale.setScalar(.9);root.add(a);ph3.push(a);
+const t=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,1,6),pk);root.add(t);inj.push(t)}
+for(let i=0;i<24;i++){const c=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,.25,5),pk);c.rotation.set(P[i].c*3,0,P[i].d*3);root.add(c);cop.push(c)}
+for(let i=0;i<30;i++){const c=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),bl);root.add(c);prt.push(c)}
+for(let i=0;i<12;i++){const c=mkPh();c.rotation.set(P[i].c*2-1,P[i].d*6,P[i].e*2-1);root.add(c);mini.push(c)}
+const el2=rd.domElement;let dn=false,lx=0,ly=0;
+el2.addEventListener('pointerdown',e=>{dn=true;lx=e.clientX;ly=e.clientY;el2.setPointerCapture(e.pointerId)});
+el2.addEventListener('pointerup',()=>dn=false);
+el2.addEventListener('pointermove',e=>{if(!dn)return;yaw+=(e.clientX-lx)*.01;pit=cl(pit+(e.clientY-ly)*.01,-1.2,1.2);lx=e.clientX;ly=e.clientY});
+el2.addEventListener('wheel',e=>{e.preventDefault();zoom=cl(zoom+e.deltaY*.005,4,14)},{passive:false});
+rs()}
+function rs(){if(!rd)return;const el=$('#c3'),w=el.clientWidth,h=el.clientHeight;if(!w)return;rd.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
+addEventListener('resize',rs);
+function d3(){
+const sw=st==4?cl(p/.65):0,b=st==4?cl((p-.65)/.35):0,k=1+.12*sw;
+root.rotation.set(pit,yaw,0);cam.position.set(0,0,zoom);cam.lookAt(0,0,0);
+cell.scale.set(2.2*k,k,k);cell.material.opacity=.3*(1-b*.8);
+host.visible=st<3;host.material.opacity=st==2?1-p:1;host.rotation.y=T*.6;
+const ap=[[-1.1,.35],[0,0],[1.2,-.4]],fs=[[-4,3.2,2],[0,4.2,-2],[4,3,1.5]],e=st==0?ez(p):1;
+for(let i=0;i<3;i++){
+const [x0,z0]=ap[i],y0=Math.sqrt(Math.max(0,1-(x0/2.2)**2-z0*z0))*k,a=ph3[i];
+a.position.set(lp(fs[i][0],x0*k,e),lp(fs[i][1],y0,e),lp(fs[i][2],z0*k,e));
+a.rotation.set(0,T*(1-e)*2,lp(1.2-i,-x0*.2,e));
+a.userData.m.color.setHex(st==0||(st==1&&p<.6)?0xf5a623:0x7a6a50);
+const t=inj[i];t.visible=st==1;
+if(st==1){const top=y0+.5-p*.3,bot=y0-p*1.1;t.scale.y=top-bot;t.position.set(a.position.x,(top+bot)/2,a.position.z)}}
+const bs=i=>[(P[i].a-.5)*2.6*k,(P[i].b-.5)*k,(P[i].c-.5)*k];
+cop.forEach((c,i)=>{c.visible=st==2&&i<Math.floor(p*24);if(c.visible)c.position.set(...bs(i))});
+prt.forEach((c,i)=>{c.visible=st==2&&i<Math.floor(p*30);if(c.visible)c.position.set((P[i].d-.5)*2.6*k,(P[i].e-.5)*k,(P[i].a-.5)*k)});
+const n=st==3?p*12:st==4?12:0;
+mini.forEach((c,i)=>{c.visible=i<Math.ceil(n);if(!c.visible)return;
+c.scale.setScalar(.3*Math.min(1,n-i));
+const q=bs(i);let X=q[0],Y=q[1],Z=q[2];
+if(b>0){const l=Math.hypot(X,Y,Z)||1,d=(.6+P[i].e)*b*3.5;X+=X/l*d;Y+=Y/l*d;Z+=Z/l*d}
+else if(st==4){X+=Math.sin(T*25+i)*sw*.03;Y+=Math.cos(T*23+i)*sw*.03}
+c.position.set(X,Y,Z);c.rotation.x+=b*.05;c.rotation.y+=b*.08})}
+
+/* ---------- loop ---------- */
+let last=0;
+function loop(t){requestAnimationFrame(loop);
+const dt=Math.min(.05,(t-last)/1000);last=t;T+=dt;
+if(play){p+=dt*spd/5;if(p>=1){if(st<4){st++;p=0}else{p=1;play=false}}}
+ui();
+if(mode=='2d')d2();else if(rd){d3();rd.render(sc,cam)}}
+if(typeof THREE!=='undefined'){init3()}else{$('#t3').disabled=true;$('#t3').textContent='3D（無法載入）'}
+ui();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
